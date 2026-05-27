@@ -431,7 +431,7 @@
     }
 
     // ---------- SALES (Google Sheets + Zoho) ----------
-    async function loadSalesData(async function loadSalesData() {
+    async function loadSalesData() {
     // Replace with your actual Google Sheets JSON URL
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/gviz/tq?tqx=out:json";
     try {
@@ -491,22 +491,7 @@
         console.error("Error loading sales data:", e);
         document.getElementById("recent-list").innerHTML = "<p>Error loading data. Check sheet publishing.</p>";
     }
-}) {
-        // In a real scenario, you would fetch from your `AKA_Sales_Data` sheet via Google Sheets API.
-        // For this demo, we'll use sample data. Replace with your actual fetch.
-        // You can use Google Sheets JSON API: https://sheets.googleapis.com/v4/spreadsheets/{id}/values/{range}?key={API_KEY}
-        // But to keep it simple initially, we'll simulate.
-        let sampleInvoices = [
-            { client: "EventCo", amount: 5000, type: "Invoice", date: "2025-02-01" },
-            { client: "Festival MY", amount: 3500, type: "Invoice", date: "2025-02-10" },
-            { client: "Brand X", amount: 1200, type: "Quote", date: "2025-02-12" },
-            { client: "Mega Event", amount: 8000, type: "Invoice", date: "2025-02-15" },
-        ];
-        let recent = sampleInvoices.slice(0,3);
-        let html = "<ul>";
-        recent.forEach(inv => {
-            html += `<li><strong>${inv.client}</strong> - ${inv.type}: RM ${inv.amount} (${inv.date})</li>`;
-        });
+});
         html += "</ul>";
         document.getElementById("recent-list").innerHTML = html;
         
