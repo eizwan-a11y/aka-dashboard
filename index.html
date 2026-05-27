@@ -306,7 +306,7 @@
     let map, distanceKm = 0;
     let customLines = []; // stores {desc, amount}
     let quill; // rich text editor
-    const NOTEBOOK_API = "https://script.google.com/macros/s/AKfycbwCxncDljUxqboXoEjDRH_QCyvKvVpvSkM7d5QVoJPhYp4KdE537euu2NZkzem_d-Ftjg/exec"; // REPLACE WITH YOUR APPS SCRIPT URL
+    const NOTEBOOK_API = "https://script.google.com/macros/s/AKfycbwCxncDljUxqboXoEjDRH_QCyvKvVpvSkM7d5QVoJPhYp4KdE537euu2NZkzem_d-Ftjg/exec";
 
     function initDashboard() {
         initMap();
@@ -314,45 +314,37 @@
         loadSalesData();
         loadNotebookList();
         setupEventListeners();
-        calculateCost(); // initial
+        calculateCost();
     }
 
     // ---------- MAP (Leaflet) ----------
     function initMap() {
-        map = L.map('map').setView([3.0738, 101.5183], 8); // centered on KL
+        map = L.map('map').setView([3.0738, 101.5183], 8);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
         }).addTo(map);
-        let homeMarker = L.marker([3.0738, 101.5183]).addTo(map)
-            .bindPopup("Sungai Besi, KL (Home Base)").openPopup();
+        L.marker([3.0738, 101.5183]).addTo(map).bindPopup("Sungai Besi, KL (Home Base)").openPopup();
         map.on('click', async function(e) {
             let dest = e.latlng;
-            // reverse geocode to get name? not needed; just distance
             let distance = await getDistanceFromSgBesi(dest.lat, dest.lng);
             distanceKm = distance;
-            L.popup()
-                .setLatLng(dest)
-                .setContent(`Distance from Sungai Besi: ${distance.toFixed(1)} km`)
-                .openOn(map);
-            calculateCost(); // update cost based on new distance
+            L.popup().setLatLng(dest).setContent(`Distance from Sungai Besi: ${distance.toFixed(1)} km`).openOn(map);
+            calculateCost();
         });
     }
 
     async function getDistanceFromSgBesi(destLat, destLng) {
         const home = [3.0738, 101.5183];
-        // use OSRM public API (free, no key)
         const url = `https://router.project-osrm.org/route/v1/driving/${home[1]},${home[0]};${destLng},${destLat}?overview=false`;
         try {
             let resp = await fetch(url);
             let data = await resp.json();
-            if (data.routes && data.routes.length) {
-                return data.routes[0].distance / 1000; // meters to km
-            }
+            if (data.routes && data.routes.length) return data.routes[0].distance / 1000;
         } catch(e) { console.log(e); }
         return 0;
     }
 
-    // ---------- LOGISTICS COST CALCULATION (based on PDF) ----------
+    // ---------- LOGISTICS COST CALCULATION ----------
     function getDistanceBand(km) {
         if (km <= 150) return "50-150km";
         if (km <= 300) return "151-300km";
@@ -400,14 +392,12 @@
         let manpower = parseFloat(document.getElementById("manpower").value) || 1350;
         let fuelType = document.getElementById("fuelType").value;
         
-        // Base costs from PDF logic (simplified)
-        let accCost = nights * 600; // accommodation per night
+        let accCost = nights * 600;
         let gasCost = balloons * 280;
         let loadingCost = 400;
         let tngCost = getDistanceBand(distanceKm) === "50-150km" ? 60 : (getDistanceBand(distanceKm) === "151-300km" ? 150 : 360);
         let fuelCost = getFuelCost(distanceKm, fuelType);
         let total = manpower + accCost + gasCost + loadingCost + tngCost + fuelCost;
-        // add custom lines
         customLines.forEach(line => total += line.amount);
         
         let multiplier = parseFloat(document.getElementById("multiplier").value);
@@ -430,44 +420,138 @@
         URL.revokeObjectURL(a.href);
     }
 
-    // ---------- SALES (Google Sheets + Zoho) ----------
+    // ---------- SALES (Live from Google Sheets CSV) ----------
     async function loadSalesData() {
-        // In a real scenario, you would fetch from your `AKA_Sales_Data` sheet via Google Sheets API.
-        // For this demo, we'll use sample data. Replace with your actual fetch.
-        // You can use Google Sheets JSON API: https://sheets.googleapis.com/v4/spreadsheets/{id}/values/{range}?key={API_KEY}
-        // But to keep it simple initially, we'll simulate.
-        let sampleInvoices = [
-            { client: "EventCo", amount: 5000, type: "Invoice", date: "2025-02-01" },
-            { client: "Festival MY", amount: 3500, type: "Invoice", date: "2025-02-10" },
-            { client: "Brand X", amount: 1200, type: "Quote", date: "2025-02-12" },
-            { client: "Mega Event", amount: 8000, type: "Invoice", date: "2025-02-15" },
-        ];
-        let recent = sampleInvoices.slice(0,3);
-        let html = "<ul>";
-        recent.forEach(inv => {
-            html += `<li><strong>${inv.client}</strong> - ${inv.type}: RM ${inv.amount} (${inv.date})</li>`;
-        });
-        html += "</ul>";
-        document.getElementById("recent-list").innerHTML = html;
+        // Your published CSV link
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTxCRVPlieBmMbyUn6crOIlYm8jaHJSR3Bdw1WbOPKrmiXaBdAVrDd7mqijDozsxGhYMk4jxyoMwYA8/pub?gid=0&single=true&output=csv";
         
-        // Charts
-        let ctx1 = document.getElementById('revenueChart').getContext('2d');
-        new Chart(ctx1, {
-            type: 'bar',
-            data: { labels: ['Jan', 'Feb', 'Mar'], datasets: [{ label: 'Revenue (RM)', data: [12000, 15000, 8000], backgroundColor: '#3b3f5c' }] }
-        });
-        let ctx2 = document.getElementById('conversionChart').getContext('2d');
-        new Chart(ctx2, {
-            type: 'line',
-            data: { labels: ['Week 1', 'Week 2', 'Week 3'], datasets: [{ label: 'Quote → Invoice %', data: [65, 70, 60], borderColor: '#f59e0b' }] }
-        });
+        try {
+            let response = await fetch(CSV_URL);
+            let csvText = await response.text();
+            
+            // Parse CSV
+            let rows = csvText.trim().split('\n');
+            if (rows.length < 2) {
+                document.getElementById("recent-list").innerHTML = "<p>No data found in sheet. Add some invoices/quotes.</p>";
+                return;
+            }
+            
+            let invoices = [];
+            for (let i = 1; i < rows.length; i++) {
+                let cols = rows[i].split(',');
+                if (cols.length >= 5) {
+                    let type = cols[0].replace(/"/g, '').trim();
+                    let client = cols[1].replace(/"/g, '').trim();
+                    let amount = parseFloat(cols[2]);
+                    let status = cols[3].replace(/"/g, '').trim();
+                    let date = cols[4].replace(/"/g, '').trim();
+                    if (!isNaN(amount) && amount > 0) {
+                        invoices.push({ type, client, amount, status, date });
+                    }
+                }
+            }
+            
+            if (invoices.length === 0) {
+                document.getElementById("recent-list").innerHTML = "<p>No valid invoice/quote data found. Check sheet format.</p>";
+                return;
+            }
+            
+            // Recent 5 items
+            let recent = [...invoices].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,5);
+            let html = "<ul style='list-style: none; padding-left: 0;'>";
+            recent.forEach(inv => {
+                html += `<li style='padding: 0.5rem 0; border-bottom: 1px solid #2d2f3a;'><strong>${inv.client || 'N/A'}</strong> - ${inv.type || 'N/A'}: RM ${inv.amount.toFixed(2)} <span style='color: #9ca3af; font-size: 0.8rem;'>(${inv.date || 'No date'})</span></li>`;
+            });
+            html += "</ul>";
+            document.getElementById("recent-list").innerHTML = html;
+            
+            // Monthly revenue (last 3 months)
+            let now = new Date();
+            let months = [];
+            let revenues = [];
+            for (let i = 2; i >= 0; i--) {
+                let month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                let monthName = month.toLocaleString('default', { month: 'short' });
+                months.push(monthName);
+                let total = invoices
+                    .filter(inv => {
+                        let invDate = new Date(inv.date);
+                        return inv.type === "Invoice" && 
+                               !isNaN(invDate.getTime()) &&
+                               invDate.getMonth() === month.getMonth() && 
+                               invDate.getFullYear() === month.getFullYear();
+                    })
+                    .reduce((sum, inv) => sum + inv.amount, 0);
+                revenues.push(total);
+            }
+            
+            // Update revenue chart
+            let ctx1 = document.getElementById('revenueChart').getContext('2d');
+            if (window.revenueChart) window.revenueChart.destroy();
+            window.revenueChart = new Chart(ctx1, {
+                type: 'bar',
+                data: { 
+                    labels: months, 
+                    datasets: [{ 
+                        label: 'Revenue (RM)', 
+                        data: revenues, 
+                        backgroundColor: '#3b3f5c',
+                        borderRadius: 8
+                    }] 
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { labels: { color: '#eef2ff' } } }
+                }
+            });
+            
+            // Conversion rate
+            let quotes = invoices.filter(i => i.type === "Quote");
+            let invoiceClients = invoices.filter(i => i.type === "Invoice").map(i => i.client);
+            let convertedQuotes = quotes.filter(q => invoiceClients.includes(q.client));
+            let convRate = quotes.length ? (convertedQuotes.length / quotes.length * 100).toFixed(0) : 0;
+            
+            let ctx2 = document.getElementById('conversionChart').getContext('2d');
+            if (window.conversionChart) window.conversionChart.destroy();
+            window.conversionChart = new Chart(ctx2, {
+                type: 'line',
+                data: { 
+                    labels: ['Overall'], 
+                    datasets: [{ 
+                        label: 'Quote → Invoice %', 
+                        data: [convRate], 
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }] 
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { labels: { color: '#eef2ff' } } }
+                }
+            });
+            
+        } catch(e) {
+            console.error("Error loading CSV:", e);
+            document.getElementById("recent-list").innerHTML = "<p>Error loading data. Make sure your Google Sheet is published as CSV (File > Share > Publish to web > Comma-separated values).</p>";
+        }
     }
 
     // ---------- NOTEBOOK (Google Sheets via Apps Script) ----------
     function initQuill() {
         quill = new Quill('#editor', {
             theme: 'snow',
-            placeholder: 'Write your note here...'
+            placeholder: 'Write your note here...',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['clean']
+                ]
+            }
         });
     }
 
@@ -486,23 +570,32 @@
     }
 
     async function loadNotebookList() {
-        let url = `${NOTEBOOK_API}?action=load`;
-        let resp = await fetch(url);
-        let notes = await resp.json();
-        let select = document.getElementById("noteList");
-        select.innerHTML = "";
-        notes.forEach(note => {
-            let option = document.createElement("option");
-            option.value = note.timestamp;
-            option.text = `${note.timestamp} - ${note.title}`;
-            select.appendChild(option);
-        });
+        try {
+            let url = `${NOTEBOOK_API}?action=load`;
+            let resp = await fetch(url);
+            let notes = await resp.json();
+            let select = document.getElementById("noteList");
+            select.innerHTML = "";
+            if (notes.length === 0) {
+                let option = document.createElement("option");
+                option.text = "No notes yet. Write one above!";
+                select.appendChild(option);
+                return;
+            }
+            notes.forEach(note => {
+                let option = document.createElement("option");
+                option.value = note.timestamp;
+                let displayTitle = note.title.length > 40 ? note.title.substring(0, 40) + "..." : note.title;
+                option.text = `${note.timestamp} - ${displayTitle}`;
+                select.appendChild(option);
+            });
+        } catch(e) { console.log("Error loading notes:", e); }
     }
 
     async function loadSelectedNote() {
         let select = document.getElementById("noteList");
         let timestamp = select.value;
-        if (!timestamp) return;
+        if (!timestamp || timestamp === "No notes yet. Write one above!") return;
         let url = `${NOTEBOOK_API}?action=load`;
         let resp = await fetch(url);
         let notes = await resp.json();
@@ -521,10 +614,17 @@
         let results = await resp.json();
         let select = document.getElementById("noteList");
         select.innerHTML = "";
+        if (results.length === 0) {
+            let option = document.createElement("option");
+            option.text = "No matching notes";
+            select.appendChild(option);
+            return;
+        }
         results.forEach(note => {
             let option = document.createElement("option");
             option.value = note.timestamp;
-            option.text = `${note.timestamp} - ${note.title}`;
+            let displayTitle = note.title.length > 40 ? note.title.substring(0, 40) + "..." : note.title;
+            option.text = `${note.timestamp} - ${displayTitle}`;
             select.appendChild(option);
         });
     }
@@ -551,7 +651,6 @@
         });
     }
 
-    // initial call for distance default
     window.calculateCost = calculateCost;
     window.addCustomLine = addCustomLine;
     window.removeCustomLine = removeCustomLine;
