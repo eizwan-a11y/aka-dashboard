@@ -432,66 +432,21 @@
 
     // ---------- SALES (Google Sheets + Zoho) ----------
     async function loadSalesData() {
-    // Replace with your actual Google Sheets JSON URL
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/gviz/tq?tqx=out:json";
-    try {
-        let response = await fetch(SHEET_URL);
-        let text = await response.text();
-        // Google returns a weird format: google.visualization.Query.setResponse(...)
-        let json = JSON.parse(text.substring(47, text.length - 2));
-        let rows = json.table.rows;
-        let invoices = [];
-        for (let row of rows) {
-            let type = row.c[0]?.v || "";
-            let client = row.c[1]?.v || "";
-            let amount = row.c[2]?.v || 0;
-            let status = row.c[3]?.v || "";
-            let date = row.c[4]?.v || "";
-            invoices.push({ type, client, amount, status, date });
-        }
-        // Sort by date descending, take last 3
-        let recent = invoices.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,3);
+        // In a real scenario, you would fetch from your `AKA_Sales_Data` sheet via Google Sheets API.
+        // For this demo, we'll use sample data. Replace with your actual fetch.
+        // You can use Google Sheets JSON API: https://sheets.googleapis.com/v4/spreadsheets/{id}/values/{range}?key={API_KEY}
+        // But to keep it simple initially, we'll simulate.
+        let sampleInvoices = [
+            { client: "EventCo", amount: 5000, type: "Invoice", date: "2025-02-01" },
+            { client: "Festival MY", amount: 3500, type: "Invoice", date: "2025-02-10" },
+            { client: "Brand X", amount: 1200, type: "Quote", date: "2025-02-12" },
+            { client: "Mega Event", amount: 8000, type: "Invoice", date: "2025-02-15" },
+        ];
+        let recent = sampleInvoices.slice(0,3);
         let html = "<ul>";
         recent.forEach(inv => {
             html += `<li><strong>${inv.client}</strong> - ${inv.type}: RM ${inv.amount} (${inv.date})</li>`;
         });
-        html += "</ul>";
-        document.getElementById("recent-list").innerHTML = html;
-
-        // Calculate monthly revenue (last 3 months)
-        let now = new Date();
-        let months = [];
-        let revenues = [];
-        for (let i = 2; i >= 0; i--) {
-            let month = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            let monthName = month.toLocaleString('default', { month: 'short' });
-            months.push(monthName);
-            let total = invoices.filter(inv => {
-                let invDate = new Date(inv.date);
-                return inv.type === "Invoice" && invDate.getMonth() === month.getMonth() && invDate.getFullYear() === month.getFullYear();
-            }).reduce((sum, inv) => sum + inv.amount, 0);
-            revenues.push(total);
-        }
-        // Update charts
-        let ctx1 = document.getElementById('revenueChart').getContext('2d');
-        new Chart(ctx1, {
-            type: 'bar',
-            data: { labels: months, datasets: [{ label: 'Revenue (RM)', data: revenues, backgroundColor: '#3b3f5c' }] }
-        });
-        // Calculate conversion rate (quotes that became invoices)
-        let quotes = invoices.filter(i => i.type === "Quote");
-        let invoicesFromQuotes = invoices.filter(i => i.type === "Invoice" && quotes.some(q => q.client === i.client && Math.abs(q.amount - i.amount) < 0.01));
-        let convRate = quotes.length ? (invoicesFromQuotes.length / quotes.length * 100).toFixed(0) : 0;
-        let ctx2 = document.getElementById('conversionChart').getContext('2d');
-        new Chart(ctx2, {
-            type: 'line',
-            data: { labels: ['Overall'], datasets: [{ label: 'Quote → Invoice %', data: [convRate], borderColor: '#f59e0b' }] }
-        });
-    } catch(e) {
-        console.error("Error loading sales data:", e);
-        document.getElementById("recent-list").innerHTML = "<p>Error loading data. Check sheet publishing.</p>";
-    }
-});
         html += "</ul>";
         document.getElementById("recent-list").innerHTML = html;
         
